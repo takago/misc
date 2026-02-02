@@ -1,0 +1,41 @@
+--- vllm/entrypoints/openai/speech_to_text.py.orig	2026-02-03 00:07:40.990238069 +0900
++++ vllm/entrypoints/openai/speech_to_text.py	2026-02-03 00:11:44.230351704 +0900
+@@ -1,3 +1,30 @@
++############### NEW ########################################
++import os
++import re
++
++# optional: Qwen3-ASR helper
++try:
++    from qwen_asr import parse_asr_output as _parse_asr_output
++except Exception:
++    _parse_asr_output = None
++
++_QWEN_ASR_PREFIX_RE = re.compile(r"^\s*language\s+[^<]*<asr_text>\s*", re.IGNORECASE)
++
++def _strip_qwen_asr_prefix(s: str) -> str:
++    if not s:
++        return s
++    # prefer the official parser when available
++    if _parse_asr_output is not None:
++        try:
++            _lang, _text = _parse_asr_output(s)
++            return _text
++        except Exception:
++            pass
++    # fallback heuristic
++    m = _QWEN_ASR_PREFIX_RE.match(s)
++    return s[m.end():] if m else s
++############################################################
++
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ import asyncio
+@@ -477,6 +504,7 @@
+             }
+             segment_class: type[SpeechToTextSegment] = segments_types[self.task_type]
+             text = ""
++            text = _strip_qwen_asr_prefix(text)    # NEW
+             chunk_size_in_s = self.asr_config.max_audio_clip_s
+             if chunk_size_in_s is None:
+                 assert len(list_result_generator) == 1, (
