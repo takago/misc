@@ -1,5 +1,5 @@
 --- vllm/entrypoints/openai/speech_to_text.py.orig	2026-02-03 00:07:40.990238069 +0900
-+++ vllm/entrypoints/openai/speech_to_text.py	2026-02-03 00:11:44.230351704 +0900
++++ vllm/entrypoints/openai/speech_to_text.py	2026-02-03 00:42:50.552408042 +0900
 @@ -1,3 +1,30 @@
 +############### NEW ########################################
 +import os
@@ -31,11 +31,11 @@
  # SPDX-License-Identifier: Apache-2.0
  # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
  import asyncio
-@@ -477,6 +504,7 @@
-             }
-             segment_class: type[SpeechToTextSegment] = segments_types[self.task_type]
-             text = ""
+@@ -502,6 +529,7 @@
+                     else:
+                         text_parts.append(op.outputs[0].text)
+             text = "".join(text_parts)
 +            text = _strip_qwen_asr_prefix(text)    # NEW
-             chunk_size_in_s = self.asr_config.max_audio_clip_s
-             if chunk_size_in_s is None:
-                 assert len(list_result_generator) == 1, (
+             if self.task_type == "transcribe":
+                 final_response: ResponseType
+                 # add usage in TranscriptionResponse.
