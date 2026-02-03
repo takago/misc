@@ -7,3 +7,8 @@ $ wget -P /tmp https://raw.githubusercontent.com/takago/misc/refs/heads/main/vll
 $ cd ${HOME}/miniconda3/envs/qwen3-asr/lib/python3.12/site-packages/
 $ patch -p0 < /tmp/vllm_qwen3_asr_strip_prefix.patch
 ```
+ワンライナーでやるなら
+```
+$ conda activate qwen3-asr
+(qwen3-asr)$ wget -qO- https://raw.githubusercontent.com/takago/misc/refs/heads/main/vllm_qwen3_asr_strip_prefix.patch | patch -p0 -d "$(python -c 'import site; print(site.getsitepackages()[0])')"
+```
