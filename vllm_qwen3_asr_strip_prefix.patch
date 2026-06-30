@@ -1,41 +1,28 @@
---- vllm/entrypoints/openai/speech_to_text.py.orig	2026-02-03 00:07:40.990238069 +0900
-+++ vllm/entrypoints/openai/speech_to_text.py	2026-02-03 00:42:50.552408042 +0900
-@@ -1,3 +1,30 @@
+--- vllm/entrypoints/openai/speech_to_text.py.orig      2026-06-30 14:43:16.251748659 +0000
++++ vllm/entrypoints/openai/speech_to_text.py   2026-06-30 14:53:47.283808943 +0000
+@@ -1,3 +1,17 @@
 +############### NEW ########################################
 +import os
 +import re
 +
-+# optional: Qwen3-ASR helper
-+try:
-+    from qwen_asr import parse_asr_output as _parse_asr_output
-+except Exception:
-+    _parse_asr_output = None
-+
-+_QWEN_ASR_PREFIX_RE = re.compile(r"^\s*language\s+[^<]*<asr_text>\s*", re.IGNORECASE)
++# 「language 言語名 <asr_text>」を全文から綺麗に消し去るための正規表現
++_QWEN_ASR_PREFIX_RE = re.compile(r"language\s+[\w\-]+\s*<asr_text>\s*", re.IGNORECASE)
 +
 +def _strip_qwen_asr_prefix(s: str) -> str:
 +    if not s:
 +        return s
-+    # prefer the official parser when available
-+    if _parse_asr_output is not None:
-+        try:
-+            _lang, _text = _parse_asr_output(s)
-+            return _text
-+        except Exception:
-+            pass
-+    # fallback heuristic
-+    m = _QWEN_ASR_PREFIX_RE.match(s)
-+    return s[m.end():] if m else s
++    # 複数結合されたすべてのプレフィックスを一括で削除
++    return _QWEN_ASR_PREFIX_RE.sub("", s)
 +############################################################
 +
  # SPDX-License-Identifier: Apache-2.0
  # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
  import asyncio
-@@ -502,6 +529,7 @@
+@@ -502,6 +516,7 @@
                      else:
                          text_parts.append(op.outputs[0].text)
              text = "".join(text_parts)
-+            text = _strip_qwen_asr_prefix(text)    # NEW
++            text = _strip_qwen_asr_prefix(text) # NEW
              if self.task_type == "transcribe":
                  final_response: ResponseType
                  # add usage in TranscriptionResponse.
