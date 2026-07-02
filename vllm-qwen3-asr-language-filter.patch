@@ -1,0 +1,57 @@
+--- vllm/entrypoints/openai/speech_to_text.py.orig	2026-06-30 14:43:16.251748659 +0000
++++ vllm/entrypoints/openai/speech_to_text.py	2026-07-02 11:09:19.696900855 +0000
+@@ -1,3 +1,46 @@
++############### NEW ########################################
++import re
++
++# Qwen3-ASR は
++#   language Japanese<asr_text>...
++#   language Chinese<asr_text>...
++# のようなブロックを連結して返すことがある．
++# 日本語・英語以外のブロックは丸ごと除去する．
++
++_QWEN_ASR_BLOCK_RE = re.compile(
++    r"language\s+([A-Za-z][A-Za-z0-9_-]*)\s*<asr_text>\s*",
++    re.IGNORECASE,
++)
++
++_QWEN_ALLOWED_LANGS = {
++    "japanese",
++    "english",
++}
++
++def _filter_qwen_asr(text: str) -> str:
++    if not text:
++        return text
++
++    matches = list(_QWEN_ASR_BLOCK_RE.finditer(text))
++
++    # Qwen3-ASR形式でなければ何もしない
++    if not matches:
++        return text
++
++    parts = []
++
++    for i, m in enumerate(matches):
++        lang = m.group(1).lower()
++
++        start = m.end()
++        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
++
++        if lang in _QWEN_ALLOWED_LANGS:
++            parts.append(text[start:end])
++
++    return "".join(parts)
++############################################################
++
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ import asyncio
+@@ -502,6 +545,7 @@
+                     else:
+                         text_parts.append(op.outputs[0].text)
+             text = "".join(text_parts)
++            text = _filter_qwen_asr(text) # NEW
+             if self.task_type == "transcribe":
+                 final_response: ResponseType
+                 # add usage in TranscriptionResponse.
